@@ -230,7 +230,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
 <section id="tab-seats">
   <div class="card teacher-only">
     <h3>生成座位方案</h3>
-    <p class="hint">生成后可逐个微调（点击两个座位即交换/移动）。生成动作和微调都会记入台账。</p>
+    <p class="hint">生成即自动合规：前排优先安置「需靠前 / 前区限定」的学生，并自动拆开「不宜同桌」。生成与微调都会记入台账，右侧可一键导出座位图或调整说明发给家长。</p>
     <div class="row">
       <button class="btn" onclick="generate('A')">方案A · 传统稳妥（按身高）</button>
       <button class="btn" onclick="generate('B')">方案B · 分区循环（身高分前中后区）</button>
@@ -238,7 +238,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
       <span class="spacer"></span>
       <button class="btn" onclick="rotateLR()">⇄ 左右轮换</button>
       <button class="btn" onclick="rotateUD()">⇅ 前后轮换</button>
+      <button class="btn" onclick="rotateSnake()">⟳ 整体蛇形轮换</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span class="spacer"></span>
       <button class="btn" onclick="parentPreview()">家长版预览（脱敏）</button>
+      <button class="btn" onclick="exportSeatImage()">导出座位图(PNG)</button>
+      <button class="btn" onclick="exportAdjustmentNote()">生成调整说明</button>
     </div>
   </div>
   <div id="checkPanel"></div>
@@ -557,17 +563,22 @@ function delStudent(id){
 }
 function batchModal(){
   openModal("批量粘贴名单",
-    '<p class="hint">每行一个学生，格式：<b>学号 姓名 身高</b>（身高可留空），用空格或逗号分隔。<br>示例：<br>1 张三 152<br>2 李四, 148</p>'
-    +'<textarea id="f_batch" placeholder="1 张三 152&#10;2 李四 148&#10;3 王五 150"></textarea>',
+    '<p class="hint">每行一个学生，格式：<b>学号 姓名 身高 备注</b>（身高/备注可留空），用空格或逗号分隔。<br>示例：<br>1 张三 152<br>2 李四 148 近视需前排<br>3 王五 150 不跟8同桌<br>备注含「近视/需前/前排/视力」自动标记视线需靠前；含「前区」标记限定前区；含「不跟N/避免N」自动设为不宜同桌（N 为学号）。</p>'
+    +'<textarea id="f_batch" placeholder="1 张三 152&#10;2 李四 148 近视需前排&#10;3 王五 150 不跟8同桌"></textarea>',
     function(){
       var lines=document.getElementById("f_batch").value.split(/\n+/), n=0, skip=0;
       lines.forEach(function(line){
         line=line.trim(); if(!line) return;
         var parts=line.split(/[,\s，]+/).filter(Boolean);
         if(parts.length<2){ skip++; return; }
-        var no=parts[0], name=parts[1], height=parts[2]||"";
+        var no=parts[0], name=parts[1], height=parts[2]||"", extra=parts.slice(3).join(" ");
         if(stuByNo(no)){ skip++; return; }
-        state.students.push({id:uid(),no:no,name:name,height:height,sight:"正常",zone:"",limit:"",avoid:"",note:""});
+        var sight="正常", zone="", avoid="", note=extra;
+        if(/近视|需前|前排|视力|看不清|坐前/.test(extra)) sight="需靠前";
+        if(/前区|限定前/.test(extra)) zone="前区";
+        var m=extra.match(/(?:不跟|避免|不坐|别跟|不合|远离|不挨)\s*(\d+)/);
+        if(m) avoid=m[1];
+        state.students.push({id:uid(),no:no,name:name,height:height,sight:sight,zone:zone,limit:"",avoid:avoid,note:note});
         n++;
       });
       addLog("sys","批量导入学生 "+n+" 人"+(skip?"（跳过 "+skip+" 行无效或重复）":""));
@@ -683,7 +694,9 @@ function generate(plan){
     });
   }
   state.seats=seats;
+  var fixed=adjustForConstraints(seats);
   addLog("gen","生成"+name+"｜学生"+students.length+"人｜布局"+state.meta.rows+"×"+state.meta.cols+(state.meta.aisles.length?"（通道:"+state.meta.aisles.join(",")+"后）":""));
+  if(fixed.length) addLog("gen","已按约束自动调整 "+fixed.length+" 处（前排优先 / 不宜同桌拆分）："+fixed.join("、"));
   save(); renderSeats(); renderStudents();
   var w=checkConflicts();
   if(w.list.length) addLog("gen","生成后校验发现 "+w.list.length+" 项提示，建议逐项核实后微调");
@@ -692,6 +705,60 @@ function generate(plan){
 function fillZone(seats,z,list){
   var r,c,k=0;
   for(r=z[1];r>=z[0];r--) for(c=1;c<=state.meta.cols;c++){ if(k<list.length){ seats[seatKey(r,c)]=list[k].id; k++; } }
+}
+
+/* ---------- 约束修正：让生成即合规 ---------- */
+function locIn(seats,id){ for(var k in seats){ if(seats[k]===id) return k; } return null; }
+function swapIn(seats,ka,kb){ var t=seats[ka]; seats[ka]=seats[kb]; seats[kb]=t; }
+function seatNeighbors(r,c){
+  var res=[], rows=state.meta.rows, cols=state.meta.cols;
+  if(c>1 && isAdjacent(c-1,c)) res.push([r,c-1]);
+  if(c<cols && isAdjacent(c,c+1)) res.push([r,c+1]);
+  if(r>1) res.push([r-1,c]);
+  if(r<rows) res.push([r+1,c]);
+  return res;
+}
+function avoidList(s){ return (s.avoid||"").split(/[,\s，]+/).map(function(x){return x.trim();}).filter(Boolean); }
+function adjustForConstraints(seats){
+  var rows=state.meta.rows, cols=state.meta.cols, moved={};
+  function logMv(n){ if(!moved[n]) moved[n]=1; }
+  // 1) 前区限定 / 视线需靠前 → 前 2 排
+  state.students.forEach(function(s){
+    if(s.zone!=="前区" && s.sight!=="需靠前") return;
+    var k=locIn(seats,s.id); if(!k) return;
+    if(+k.split("-")[0] > 2){
+      for(var fr=1;fr<=2;fr++) for(var c=1;c<=cols;c++){
+        var fk=seatKey(fr,c);
+        if(!seats[fk]){ seats[fk]=s.id; delete seats[k]; logMv(s.name); return; }
+        var o=stuById(seats[fk]);
+        if(o && (o.zone==="前区"||o.sight==="需靠前")) continue;
+        swapIn(seats,k,fk); logMv(s.name); return;
+      }
+    }
+  });
+  // 2) 不宜同桌 → 拆分（优先安全空位）
+  state.students.forEach(function(s){
+    var av=avoidList(s); if(!av.length) return;
+    var k=locIn(seats,s.id); if(!k) return;
+    var r=+k.split("-")[0], c=+k.split("-")[1], conflict=false;
+    seatNeighbors(r,c).forEach(function(p){
+      var id=seats[seatKey(p[0],p[1])]; if(!id) return;
+      var o=stuById(id); if(o && av.indexOf(String(o.no))>=0) conflict=true;
+    });
+    if(!conflict) return;
+    var target=null;
+    for(var rr=1;rr<=rows && !target;rr++) for(var cc=1;cc<=cols;cc++){
+      var tk=seatKey(rr,cc); if(seats[tk]) continue;
+      var safe=true;
+      seatNeighbors(rr,cc).forEach(function(p){
+        var id=seats[seatKey(p[0],p[1])]; if(!id) return;
+        var o=stuById(id); if(o && av.indexOf(String(o.no))>=0) safe=false;
+      });
+      if(safe) target=tk;
+    }
+    if(target){ seats[target]=s.id; delete seats[k]; logMv(s.name); }
+  });
+  return Object.keys(moved);
 }
 
 /* ---------- 轮换 ---------- */
@@ -718,6 +785,103 @@ function rotateUD(){
   addLog("gen","执行前后轮换（每列后移一排），请复核遮挡与特殊学生");
   save(); renderSeats();
 }
+function rotateSnake(){
+  if(!Object.keys(state.seats).length){ alert("请先生成座位方案"); return; }
+  if(!confirm("整体蛇形轮换：全班按蛇形顺序整体移动一个座位，前后排与左右都变，长期更公平。执行后请复核遮挡与特殊学生。继续？")) return;
+  var rows=state.meta.rows, cols=state.meta.cols, order=[], r,c,colsArr;
+  for(r=1;r<=rows;r++){
+    colsArr=[]; for(c=1;c<=cols;c++) colsArr.push(c);
+    if(r%2===0) colsArr.reverse();
+    colsArr.forEach(function(cc){ order.push(seatKey(r,cc)); });
+  }
+  var occ=order.filter(function(k){ return state.seats[k]; });
+  if(occ.length<2){ alert("座位太少，无需轮换"); return; }
+  var ids=occ.map(function(k){ return state.seats[k]; });
+  ids.unshift(ids.pop());
+  occ.forEach(function(k,i){ state.seats[k]=ids[i]; });
+  addLog("gen","执行整体蛇形轮换（每生整体移动一格），请复核遮挡与特殊学生");
+  save(); renderSeats(); renderStudents();
+}
+
+/* ---------- 家长沟通产物：座位图 / 调整说明 ---------- */
+function roundRect(ctx,x,y,w,h,rad){ ctx.beginPath(); ctx.moveTo(x+rad,y); ctx.arcTo(x+w,y,x+w,y+h,rad); ctx.arcTo(x+w,y+h,x,y+h,rad); ctx.arcTo(x,y+h,x,y,rad); ctx.arcTo(x,y,x+w,y,rad); ctx.closePath(); }
+function exportSeatImage(){
+  if(!Object.keys(state.seats).length){ alert("请先生成座位方案"); switchTab("seats"); return; }
+  var rows=state.meta.rows, cols=state.meta.cols, cw=92, ch=64, pad=16, topH=40, gap=10;
+  var W=pad*2 + cols*cw + (cols-1)*gap;
+  var H=pad*2 + topH + rows*ch + (rows-1)*gap;
+  var cv=document.createElement("canvas"); cv.width=W; cv.height=H;
+  var ctx=cv.getContext("2d");
+  ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,W,H);
+  ctx.textBaseline="middle"; ctx.textAlign="left";
+  ctx.fillStyle="#26215C"; ctx.font="600 20px sans-serif";
+  ctx.fillText((state.meta.className||"座位表")+" · 共"+state.students.length+"人", pad, pad+8);
+  ctx.fillStyle="#5F5E5A"; ctx.font="13px sans-serif";
+  ctx.fillText("讲台在前 · 生成于 "+today(), pad, pad+28);
+  var py=pad+topH-4;
+  ctx.fillStyle="#CECBF6"; roundRect(ctx,pad,py,W-pad*2,18,4); ctx.fill();
+  ctx.fillStyle="#3C3489"; ctx.font="600 12px sans-serif"; ctx.textAlign="center";
+  ctx.fillText("讲 台", W/2, py+9); ctx.textAlign="left";
+  var gy=py+18+gap;
+  var gapCols={}; state.meta.aisles.forEach(function(a){ gapCols[a]=true; });
+  var colX=pad;
+  for(var c=1;c<=cols;c++){
+    if(gapCols[c-1] && c>1) colX+=gap;
+    for(var r=1;r<=rows;r++){
+      var x=colX, y=gy+(r-1)*(ch+gap);
+      var id=state.seats[seatKey(r,c)], s=id?stuById(id):null;
+      ctx.fillStyle=s?"#F4F3FB":"#FAFAF8";
+      ctx.strokeStyle=s?"#CECBF6":"#E6E4DC"; ctx.lineWidth=1;
+      roundRect(ctx,x,y,cw,ch,6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle="#9b97c9"; ctx.font="11px sans-serif"; ctx.textAlign="left";
+      ctx.fillText(seatNo(seatKey(r,c)), x+6, y+13);
+      if(s){ ctx.fillStyle="#1a1a1a"; ctx.font="600 16px sans-serif"; ctx.fillText(s.name, x+6, y+36); }
+      else { ctx.fillStyle="#bdbab2"; ctx.font="13px sans-serif"; ctx.fillText("空", x+6, y+36); }
+    }
+    colX+=cw+gap;
+  }
+  cv.toBlob(function(blob){
+    var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=(state.meta.className||"座位表")+"_"+today()+".png";
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500);
+    addLog("sys","导出座位表图片(PNG)："+(state.meta.className||"本班")); save();
+    showToast("座位表图片已导出，可直接发家长群");
+  });
+}
+function exportAdjustmentNote(){
+  var cls=state.meta.className||"本班", lines=[];
+  lines.push(cls+" 座位安排说明（生成于 "+today()+"）"); lines.push("");
+  var special=state.students.filter(function(s){ return s.zone==="前区"||s.sight==="需靠前"||s.limit||s.avoid; });
+  if(special.length){
+    lines.push("一、有依据的特殊安排");
+    special.forEach(function(s){
+      var reason=[];
+      if(s.sight==="需靠前") reason.push("视线需靠前（已核实）");
+      if(s.zone==="前区") reason.push("限定前区");
+      if(s.limit) reason.push(s.limit);
+      if(s.avoid) reason.push("不宜与 "+s.avoid+" 号同桌");
+      lines.push("· "+s.no+" "+s.name+"：" + reason.join("；"));
+    });
+    lines.push("");
+  }
+  var recent=state.log.filter(function(l){ return l.type==="move"||l.type==="gen"; }).slice(0,12);
+  if(recent.length){
+    lines.push("二、近期调整记录");
+    recent.forEach(function(l){ lines.push("· "+l.t+" "+l.desc+(l.reason?("（理由："+l.reason+"）"):"")); });
+    lines.push("");
+  }
+  lines.push("说明：座位首先保证基本视听与课堂秩序，会根据实际情况调整，并非永久固定。");
+  var txt=lines.join("\n");
+  window.__lastNote=txt;
+  openModal("座位安排说明（可复制发家长群）",
+    '<textarea id="noteText" style="width:100%;height:300px;font-size:13px;line-height:1.6">'+esc(txt)+'</textarea>',
+    null,"关闭",
+    '<div class="foot"><button class="btn" onclick="copyText(\'noteText\')">复制全文</button>'
+    +'<button class="btn primary" onclick="downloadNote()">下载为文本</button></div>');
+}
+function copyText(id){ var t=document.getElementById(id); if(!t) return; t.select(); try{ document.execCommand("copy"); showToast("已复制，可粘贴到家长群"); }catch(e){ alert("复制失败，请手动选择文本"); } }
+function downloadNote(){ if(!window.__lastNote) return; saveBlob(window.__lastNote,"text/plain;charset=utf-8",(state.meta.className||"座位安排说明")+"_"+today()+".txt"); }
 
 /* ---------- 冲突校验 ---------- */
 function checkConflicts(){
@@ -912,7 +1076,8 @@ function renderObs(){
     html+='<div style="margin-bottom:12px"><b>'+esc(name)+'</b>';
     if(warns.length){
       var danger=(cnt["冲突行为"]||0)>=1;
-      html+='<div class="notice '+(danger?"danger":"warn")+'" style="margin:6px 0 8px">⚠ 已达到关注线：<ul>'+warns.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul></div>';
+      html+='<div class="notice '+(danger?"danger":"warn")+'" style="margin:6px 0 8px">⚠ 已达到关注线：<ul>'+warns.map(function(x){return "<li>"+esc(x)+"</li>";}).join("")+'</ul>'
+        +'<div style="margin-top:6px"><button class="btn small" onclick="setAvoidWithDeskmate(\''+sid+'\')">把他和当前同桌设为不宜同桌</button></div></div>';
     }
     groups[sid].forEach(function(o){
       html+='<div class="log-item sys"><div class="t">'+esc(o.date)+(o.lesson?' · '+esc(o.lesson):'')+' · '+esc(o.type)+'</div>'
@@ -927,6 +1092,19 @@ function delObs(id){
   if(!confirm("删除这条观察记录？")) return;
   state.observations=state.observations.filter(function(o){ return o.id!==id; });
   save(); renderObs();
+}
+function setAvoidWithDeskmate(sid){
+  var s=stuById(sid); if(!s) return;
+  var k=seatOf(sid);
+  if(!k){ alert(s.name+" 还未入座，无法定位同桌。请先在座位表安排其入座。"); return; }
+  var p=k.split("-"), nb=seatNeighbors(+p[0],+p[1]), mate=null;
+  for(var i=0;i<nb.length;i++){ var id=state.seats[seatKey(nb[i][0],nb[i][1])]; if(id && id!==sid){ mate=stuById(id); break; } }
+  if(!mate){ alert(s.name+" 当前周围没有同桌（可能单人位或邻座空）。可在「学生」页手动设置「不宜同桌」。"); return; }
+  if(!confirm("将 "+s.name+" 与同桌 "+mate.name+" 设为「不宜同桌」？设置后他们不会再被排到一起，可到座位表重新生成或微调。")) return;
+  function addAv(stu,no){ var arr=avoidList(stu); if(arr.indexOf(String(no))<0){ arr.push(String(no)); stu.avoid=arr.join(","); } }
+  addAv(s,mate.no); addAv(mate,s.no);
+  addLog("sys","观察闭环：设 "+s.no+" "+s.name+" 与 "+mate.no+" "+mate.name+" 为不宜同桌");
+  save(); renderStudents(); renderObs(); showToast("已设为不宜同桌，可到座位表重新生成或微调");
 }
 function obsTimelineModal(){
   var f=document.getElementById("obsFilter").value;
