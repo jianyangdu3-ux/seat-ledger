@@ -1265,6 +1265,25 @@ renderAll();
 applyView();
 registerSW();
 maybeFirstRun();
+
+/* 自动更新：发现服务器有新版本则自动刷新（带防抖），客户无需手动清缓存 */
+(function(){
+  try{
+    fetch('version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json();}).then(function(d){
+      if(!d||!d.version) return;
+      var seen=localStorage.getItem('seatLedger.v')||"";
+      if(seen && seen!==d.version){
+        var last=parseInt(localStorage.getItem('seatLedger.updAt')||'0',10);
+        if(Date.now()-last<60000) return; // 1 分钟内不重复触发
+        localStorage.setItem('seatLedger.updAt',String(Date.now()));
+        localStorage.setItem('seatLedger.v',d.version);
+        location.href=location.pathname+'?u='+encodeURIComponent(d.version);
+      }else{
+        localStorage.setItem('seatLedger.v',d.version);
+      }
+    }).catch(function(){});
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
