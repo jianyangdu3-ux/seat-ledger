@@ -960,8 +960,13 @@ function showGuide(manual){
     +'<li><b>④ 点击换座并留痕</b>：点座位上的学生可手动调整，<b>必须填写理由</b>——每一次改动都会记入「记录」台账，方便后续复核或向家长说明。也可在「观察」页记录三课表现。</li>'
     +'<li><b>⑤ 导出 / 换设备</b>：到「数据」页「导出数据」存成 JSON 备份，换设备后用「导入数据」恢复；也可在「学生」页「导出名单」导出 CSV / 文本给家长或打印。</li>'
     +'</ol>'
-    +'<p class="hint" style="margin:4px 0 0">随时点顶栏「? 帮助」可再看本说明；学生视角下界面会自动隐去敏感信息，可放心投影。</p>'
-    +'<p class="hint" style="margin:10px 0 0;border-top:1px dashed var(--line);padding-top:10px"><b>想装到手机 / 电脑上当 App 用？</b>（离线也能开、可加到主屏幕）看<a href="install.html" target="_blank" style="color:var(--brand);font-weight:600">安装教程 →</a>，按手机 / 电脑分步图文操作。</p>'
+    +'<p class="hint" style="margin:4px 0 0">随时点顶栏「? 帮助」可再看本说明；想把工具装到手机 / 电脑，也见「? 帮助」里的「安装到手机 / 电脑」标注。学生视角下界面会自动隐去敏感信息，可放心投影。</p>'
+    +(manual
+      ? '<div style="margin:10px 0 0;border-top:1px dashed var(--line);padding-top:10px">'
+        +'<p class="hint" style="margin:0 0 4px;font-weight:700;color:var(--ink)">安装到手机 / 电脑（可选）</p>'
+        +'<p class="hint" style="margin:0">想装成 App（离线也能开、可加到主屏幕）？看<a href="install.html" target="_blank" style="color:var(--brand);font-weight:600">图文安装教程 →</a>，按手机 / 电脑分步操作。</p>'
+        +'</div>'
+      : '')
     +'<p class="hint" style="margin:8px 0 0"><b>换手机 / 电脑前记得备份：</b>数据只存在当前设备。换设备或清浏览器前，到「数据」页「导出数据」存一份 JSON；新设备上「导入数据」即可原样恢复。</p>'
     +'</div>';
   var foot='<div class="foot"><button class="btn primary" onclick="quickStart()">立即载入示例体验</button>'
