@@ -230,7 +230,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
 <section id="tab-seats">
   <div class="card teacher-only">
     <h3>生成座位方案</h3>
-    <p class="hint">生成后可逐个微调（点击两个座位即交换/移动，需填写调整理由）。生成动作会记入台账。</p>
+    <p class="hint">生成后可逐个微调（点击两个座位即交换/移动）。生成动作和微调都会记入台账。</p>
     <div class="row">
       <button class="btn" onclick="generate('A')">方案A · 传统稳妥（按身高）</button>
       <button class="btn" onclick="generate('B')">方案B · 分区循环（身高分前中后区）</button>
@@ -256,7 +256,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
       <span class="spacer"></span>
       <button class="btn small danger" onclick="clearLog()">清空记录</button>
     </h3>
-    <p class="hint">每一次生成、轮换、微调都会留痕。家长或学校询问时，这就是"为什么这样排"的完整依据。手动微调必须填写理由。</p>
+    <p class="hint">每一次生成、轮换、微调都会留痕。家长或学校询问时，这就是"为什么这样排"的完整依据。微调时建议填写理由（可留空）。</p>
     <div id="logList"></div>
   </div>
 </section>
@@ -970,7 +970,7 @@ function showGuide(manual){
     +'<li><b>① 建班级 / 加学生</b>：在「学生」页点「＋班级」新建，或点「载入42人示例」先体验；用「批量粘贴」或「＋添加学生」录入名单，身高/视线/限制等敏感信息建议用学号或编号。</li>'
     +'<li><b>② 定教室布局</b>：到「教室」页设置排数、列数和通道（列间走道），第 1 排最靠近讲台。</li>'
     +'<li><b>③ 生成座位方案</b>：到「座位表」页选 A 传统身高 / B 分区循环 / C 小组轮换 三种方案之一，点「生成」。系统会<b>自动校验</b>不宜同桌、前排遮挡、限定前区等问题并提示。</li>'
-    +'<li><b>④ 点击换座并留痕</b>：点座位上的学生可手动调整，<b>必须填写理由</b>——每一次改动都会记入「记录」台账，方便后续复核或向家长说明。也可在「观察」页记录三课表现。</li>'
+    +'<li><b>④ 点击换座并留痕</b>：点座位上的学生可手动调整，<b>建议填写理由</b>（无特殊原因可不填）——每一次改动都会记入「记录」台账，方便后续复核或向家长说明。也可在「观察」页记录三课表现。</li>'
     +'<li><b>⑤ 导出 / 换设备</b>：到「数据」页「导出数据」存成 JSON 备份，换设备后用「导入数据」恢复；也可在「学生」页「导出名单」导出 CSV / 文本给家长或打印。</li>'
     +'</ol>'
     +'<p class="hint" style="margin:4px 0 0">随时点顶栏「? 帮助」可再看本说明；想把工具装到手机 / 电脑，也见「? 帮助」里的「安装到手机 / 电脑」标注。学生视角下界面会自动隐去敏感信息，可放心投影。</p>'
@@ -1009,10 +1009,9 @@ function maybeFirstRun(){
 function reasonModal(title,desc,onOK){
   openModal(title,
     "<p style='margin-bottom:10px'>"+desc+"</p>"
-    +'<div class="field"><label>调整理由（必填，会记入台账）</label><textarea id="f_reason" placeholder="例如：家长反映看不清，核实后前侧试调一周；三课观察讲话提醒 3/2/4 次，拆开试坐"></textarea></div>',
+    +'<div class="field"><label>调整理由（选填）</label><textarea id="f_reason" placeholder="没有特殊原因可以不填；填写后会在台账留痕，便于日后回溯"></textarea></div>',
     function(){
       var r=document.getElementById("f_reason").value.trim();
-      if(!r){ alert("请填写调整理由——留痕是本工具的核心价值"); return false; }
       return onOK(r);
     },"确认调整");
 }
