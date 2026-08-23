@@ -65,12 +65,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
 .field textarea{width:100%;min-height:70px;resize:vertical;display:block}
 /* 座位网格 */
 .seat-board{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;overflow-x:auto}
-.podium{text-align:center;background:var(--brand-bg);color:var(--brand);border-radius:8px;padding:6px;margin-bottom:12px;font-weight:600;font-size:13px;max-width:560px;margin-left:auto;margin-right:auto}
+.podium{text-align:center;background:var(--brand-bg);color:var(--brand);border:1.5px solid var(--brand);border-radius:8px;padding:8px 10px;margin:0 auto 14px;font-weight:700;font-size:13px;max-width:220px;letter-spacing:6px}
 .seat-grid{display:grid;gap:6px;min-width:min-content;margin:0 auto;max-width:640px}
 .seat{border:1.5px solid var(--line);border-radius:8px;min-height:56px;padding:4px 5px;background:#fff;cursor:pointer;position:relative;text-align:center;display:flex;flex-direction:column;justify-content:center}
 .seat:hover{border-color:var(--brand)}
-.seat .no{font-size:10px;color:var(--sub);line-height:1.2}
-.seat .nm{font-size:13px;font-weight:600;line-height:1.3;word-break:break-all}
+.seat .no{font-size:10px;color:#c4c0b8;line-height:1.15;letter-spacing:.2px;margin-bottom:1px}
+.seat .nm{font-size:14px;font-weight:700;line-height:1.25;word-break:break-all}
 .seat .nm small{display:block;font-weight:400;font-size:10px;color:var(--sub)}
 .seat.empty{color:var(--sub);font-size:11px;background:#fafaf8}
 .seat.sel{border-color:var(--brand);background:var(--brand-bg);box-shadow:0 0 0 2px var(--brand-bg)}
@@ -82,8 +82,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
 .chip.sel{border-color:var(--brand);background:var(--brand-bg);color:var(--brand)}
 /* 脱敏预览座位（不可点击） */
 .view-seat{border:1.5px solid var(--line);border-radius:8px;min-height:48px;padding:4px 5px;background:#fff;text-align:center;display:flex;flex-direction:column;justify-content:center}
-.view-seat .no{font-size:10px;color:var(--sub);line-height:1.2}
-.view-seat .nm{font-size:13px;font-weight:600;line-height:1.3}
+.view-seat .no{font-size:10px;color:#c4c0b8;line-height:1.15;margin-bottom:1px}
+.view-seat .nm{font-size:14px;font-weight:700;line-height:1.25}
 .view-seat .nm small{display:block;font-weight:400;font-size:10px;color:var(--sub)}
 .view-seat.empty{color:var(--sub);font-size:11px;background:#fafaf8}
 /* 提示面板 */
@@ -91,7 +91,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
 .notice.warn{background:var(--warn-bg);color:var(--warn)}
 .notice.danger{background:var(--danger-bg);color:var(--danger)}
 .notice.ok{background:var(--teal-bg);color:var(--teal)}
-.notice.info{background:var(--brand-bg);color:var(--brand)}
+.notice.info{background:var(--brand);color:#fff;font-weight:600;border-left:4px solid #2f2580;padding:11px 14px}
 .notice ul{margin:4px 0 0 18px}
 /* 记录 */
 .log-item{border-left:3px solid var(--line);padding:6px 0 6px 12px;margin-bottom:2px}
