@@ -35,6 +35,9 @@ header p{color:var(--sub);font-size:13px;margin:0}
 .share .ico{width:30px;height:30px;border-radius:7px;background:var(--brand-bg);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:17px}
 .note{background:var(--brand-bg);color:var(--brand);border-radius:12px;padding:13px 15px;font-size:13px;max-width:560px;margin:4px auto 16px;line-height:1.8}
 .note b{font-weight:700}
+.warn{background:#fff6e6;border:1px solid #f0c674;color:#8a5a00;border-radius:12px;padding:12px 15px;font-size:13px;max-width:560px;margin:0 auto 14px;line-height:1.7}
+.warn b{font-weight:700;color:#a05a00}
+.warn .em{display:inline-block;background:#8a5a00;color:#fff;border-radius:6px;padding:1px 7px;font-size:12px;margin-right:4px}
 .openbtn{display:block;max-width:560px;margin:0 auto 22px;text-align:center;background:var(--brand);color:#fff;border-radius:10px;padding:13px;font-size:15px;text-decoration:none;font-weight:600}
 a{color:var(--brand)}
 footer{text-align:center;color:var(--sub);font-size:12px;margin-top:6px}
@@ -45,6 +48,11 @@ footer{text-align:center;color:var(--sub);font-size:12px;margin-top:6px}
   <h1>📲 把"排座台账"装到设备上</h1>
   <p>装好后像普通 App 一样打开，离线也能用，数据只存你自己的设备</p>
 </header>
+
+<div class="warn">
+  <b>⚠️ 重要：别在微信 / QQ 里直接装</b><br>
+  在<b>微信、QQ 内置浏览器</b>打开链接时，点不了"安装 / 添加到主屏幕"。请先点右上角「<span class="em">…</span>」→ 选「在浏览器打开」，再用手机自带的 <b>Chrome / Edge / Safari</b> 按下面的步骤装。电脑则直接用 Chrome / Edge 浏览器打开即可。
+</div>
 
 <div class="tabs">
   <div class="tab on" onclick="switchTab(this,'phone')">📱 手机</div>
